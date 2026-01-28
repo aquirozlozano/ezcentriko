@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: ez-centriko-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ez_centriko
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ez_centriko_pg:/var/lib/postgresql/data
+      - ./server/sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+volumes:
+  ez_centriko_pg:
