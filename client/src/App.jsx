@@ -1,87 +1,47 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PublicClientApplication } from "@azure/msal-browser";
-import { factories, models, service } from "powerbi-client";
-import { createReport, getReports, login, register } from "./api.js";
-
-const API_SCOPES = (import.meta.env.VITE_PBI_SCOPES || "")
-  .split(" ")
-  .filter(Boolean);
-
-const aadClientId = import.meta.env.VITE_AAD_CLIENT_ID;
-const tenantId = import.meta.env.VITE_AAD_TENANT_ID;
-
-const msalInstance = new PublicClientApplication({
-  auth: {
-    clientId: aadClientId,
-    authority: tenantId
-      ? `https://login.microsoftonline.com/${tenantId}`
-      : "https://login.microsoftonline.com/common",
-    redirectUri: window.location.origin
-  },
-  cache: {
-    cacheLocation: "sessionStorage"
-  }
-});
-
-const powerbiService = new service.Service(
-  factories.hpmFactory,
-  factories.wpmpFactory,
-  factories.routerFactory
-);
-
-const emptyReport = {
-  reportId: "",
-  name: "",
-  embedUrl: ""
-};
+import * as powerbi from "powerbi-client";
+import { models } from "powerbi-client";
+import { getReports, login } from "./api.js";
+import { parsePowerBiReport } from "./powerbi.js";
 
 export default function App() {
-  const [authMode, setAuthMode] = useState("login");
   const [authError, setAuthError] = useState("");
-  const [token, setToken] = useState("");
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState("");
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [reportForm, setReportForm] = useState(emptyReport);
   const [reportError, setReportError] = useState("");
-  const [msalAccount, setMsalAccount] = useState(null);
-  const [powerBiToken, setPowerBiToken] = useState("");
-  const embedRef = useRef(null);
+  const [pbiError, setPbiError] = useState("");
+  const [pbiAccessToken, setPbiAccessToken] = useState("");
+  const reportContainerRef = useRef(null);
 
-  const msalReady = Boolean(aadClientId);
-
-  useEffect(() => {
-    if (!token) {
-      setReports([]);
-      return;
+  const msalInstance = useMemo(() => {
+    const clientId = import.meta.env.VITE_AAD_CLIENT_ID;
+    const tenantId = import.meta.env.VITE_AAD_TENANT_ID;
+    if (!clientId || !tenantId) {
+      return null;
     }
 
-    getReports(token)
-      .then((data) => setReports(data.reports || []))
-      .catch((error) => setReportError(error.message));
-  }, [token]);
-
-  useEffect(() => {
-    if (!selectedReport || !powerBiToken || !embedRef.current) {
-      return;
-    }
-
-    powerbiService.reset(embedRef.current);
-    powerbiService.embed(embedRef.current, {
-      type: "report",
-      id: selectedReport.report_id,
-      embedUrl: selectedReport.embed_url,
-      accessToken: powerBiToken,
-      tokenType: models.TokenType.Aad,
-      settings: {
-        panes: {
-          filters: { visible: false },
-          pageNavigation: { visible: true }
-        },
-        background: models.BackgroundType.Transparent
+    return new PublicClientApplication({
+      auth: {
+        clientId,
+        authority: `https://login.microsoftonline.com/${tenantId}`,
+        redirectUri: window.location.origin
+      },
+      cache: {
+        cacheLocation: "sessionStorage"
       }
     });
-  }, [selectedReport, powerBiToken]);
+  }, []);
+
+  const powerbiService = useMemo(() => {
+    return new powerbi.service.Service(
+      powerbi.factories.hpmFactory,
+      powerbi.factories.wpmpFactory,
+      powerbi.factories.routerFactory
+    );
+  }, []);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -89,269 +49,234 @@ export default function App() {
     const formData = new FormData(event.target);
     try {
       const data = await login(formData.get("email"), formData.get("password"));
-      setToken(data.token);
       setUser(data.user);
+      setToken(data.token);
     } catch (error) {
       setAuthError(error.message);
     }
   };
 
-  const handleRegister = async (event) => {
-    event.preventDefault();
-    setAuthError("");
-    const formData = new FormData(event.target);
-    try {
-      const data = await register(
-        formData.get("name"),
-        formData.get("email"),
-        formData.get("password")
+  useEffect(() => {
+    if (!token) {
+      setReports([]);
+      setSelectedReport(null);
+      return;
+    }
+
+    getReports(token)
+      .then((data) => {
+        setReports(data.reports || []);
+        setReportError("");
+      })
+      .catch((error) => setReportError(error.message));
+  }, [token]);
+
+  useEffect(() => {
+    if (!msalInstance) {
+      return;
+    }
+
+    msalInstance.initialize().catch((error) => {
+      console.error(error);
+      setPbiError("No se pudo inicializar Power BI.");
+    });
+  }, [msalInstance]);
+
+  useEffect(() => {
+    if (!reportContainerRef.current) {
+      return;
+    }
+
+    if (!selectedReport || !pbiAccessToken) {
+      powerbiService.reset(reportContainerRef.current);
+      return;
+    }
+
+    const { reportId, embedUrl } = parsePowerBiReport(
+      selectedReport.embed_url || ""
+    );
+
+    if (!reportId || !embedUrl) {
+      setReportError(
+        "El enlace del reporte no es valido para Power BI embed."
       );
-      setToken(data.token);
-      setUser(data.user);
-      setAuthMode("login");
-    } catch (error) {
-      setAuthError(error.message);
+      powerbiService.reset(reportContainerRef.current);
+      return;
     }
+
+    const config = {
+      type: "report",
+      tokenType: models.TokenType.Aad,
+      accessToken: pbiAccessToken,
+      embedUrl,
+      id: reportId,
+      settings: {
+        panes: {
+          filters: { visible: false },
+          pageNavigation: { visible: true }
+        }
+      }
+    };
+
+    powerbiService.embed(reportContainerRef.current, config);
+  }, [pbiAccessToken, powerbiService, selectedReport]);
+
+  const logout = () => {
+    setUser(null);
+    setToken("");
   };
 
-  const handleAddReport = async (event) => {
-    event.preventDefault();
-    setReportError("");
-    try {
-      const data = await createReport(token, reportForm);
-      setReports((prev) => [...prev, data.report]);
-      setReportForm(emptyReport);
-    } catch (error) {
-      setReportError(error.message);
+  const connectPowerBi = async () => {
+    if (!msalInstance) {
+      setPbiError(
+        "Configura VITE_AAD_CLIENT_ID y VITE_AAD_TENANT_ID en el frontend."
+      );
+      return;
     }
-  };
 
-  const connectPowerBI = async () => {
-    if (!msalReady) {
-      setReportError("Configura VITE_AAD_CLIENT_ID y VITE_AAD_TENANT_ID");
+    const rawScopes = import.meta.env.VITE_PBI_SCOPES || "";
+    const scopes = rawScopes
+      .split(",")
+      .map((scope) => scope.trim())
+      .filter(Boolean);
+
+    if (!scopes.length) {
+      setPbiError("Configura VITE_PBI_SCOPES para Power BI.");
       return;
     }
 
     try {
-      const loginResponse = await msalInstance.loginPopup({
-        scopes: API_SCOPES
-      });
+      setPbiError("");
+      const loginResponse = await msalInstance.loginPopup({ scopes });
       const account = loginResponse.account;
-      setMsalAccount(account);
+
+      if (!account) {
+        setPbiError("No se pudo obtener la cuenta de Power BI.");
+        return;
+      }
 
       const tokenResponse = await msalInstance.acquireTokenSilent({
-        scopes: API_SCOPES,
+        scopes,
         account
       });
-
-      setPowerBiToken(tokenResponse.accessToken);
+      setPbiAccessToken(tokenResponse.accessToken);
     } catch (error) {
-      setReportError("No se pudo autenticar con Microsoft.");
+      console.error(error);
+      try {
+        const tokenResponse = await msalInstance.acquireTokenPopup({ scopes });
+        setPbiAccessToken(tokenResponse.accessToken);
+      } catch (popupError) {
+        console.error(popupError);
+        setPbiError("No se pudo autenticar con Power BI.");
+      }
     }
   };
 
-  const logout = () => {
-    setToken("");
-    setUser(null);
-    setSelectedReport(null);
-    setPowerBiToken("");
+  const disconnectPowerBi = () => {
+    setPbiAccessToken("");
   };
 
-  const readyToEmbed = Boolean(selectedReport && powerBiToken);
+  if (!user) {
+    return (
+      <div className="app login-page">
+        <header className="login-hero">
+          <p className="eyebrow">EZ Centriko</p>
+          <h1>Cargamos, procesamos y transformamos para ti</h1>
+        </header>
+
+        <section className="login-card">
+          <div>
+            <p className="tag">Acceso</p>
+            <form onSubmit={handleLogin} className="form">
+              <input name="email" type="email" placeholder="Correo" required />
+              <input
+                name="password"
+                type="password"
+                placeholder="Contrasena"
+                required
+              />
+              <button type="submit">Entrar</button>
+            </form>
+            {authError ? <p className="error">{authError}</p> : null}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
-    <div className="app">
-      <header className="hero">
+    <div className="app dashboard">
+      <header className="dashboard-header">
         <div>
           <p className="eyebrow">EZ Centriko</p>
-          <h1>
-            Reportes Power BI
-            <span> en un solo lugar</span>
-          </h1>
-          <p className="subtitle">
-            Login interno con base de datos, catálogo de reportes y
-            embebido seguro con Microsoft Entra ID.
-          </p>
+          <h1>{user.company_name || "Reportes"}</h1>
         </div>
-        <div className="hero-card">
-          {user ? (
-            <div>
-              <p className="tag">Sesión activa</p>
-              <h3>{user.name}</h3>
-              <p className="muted">{user.email}</p>
-              <button className="ghost" type="button" onClick={logout}>
-                Cerrar sesión
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p className="tag">Acceso</p>
-              <div className="tabs">
-                <button
-                  className={authMode === "login" ? "active" : ""}
-                  onClick={() => setAuthMode("login")}
-                  type="button"
-                >
-                  Ingresar
-                </button>
-                <button
-                  className={authMode === "register" ? "active" : ""}
-                  onClick={() => setAuthMode("register")}
-                  type="button"
-                >
-                  Registrar
-                </button>
-              </div>
-              {authMode === "login" ? (
-                <form onSubmit={handleLogin} className="form">
-                  <input name="email" type="email" placeholder="Correo" required />
-                  <input
-                    name="password"
-                    type="password"
-                    placeholder="Contraseña"
-                    required
-                  />
-                  <button type="submit">Entrar</button>
-                </form>
-              ) : (
-                <form onSubmit={handleRegister} className="form">
-                  <input name="name" type="text" placeholder="Nombre" required />
-                  <input name="email" type="email" placeholder="Correo" required />
-                  <input
-                    name="password"
-                    type="password"
-                    placeholder="Contraseña"
-                    required
-                  />
-                  <button type="submit">Crear cuenta</button>
-                </form>
-              )}
-              {authError ? <p className="error">{authError}</p> : null}
-            </div>
-          )}
+        <div className="user-info">
+          <div className="pbi-auth">
+            <button
+              className="ghost"
+              type="button"
+              onClick={pbiAccessToken ? disconnectPowerBi : connectPowerBi}
+            >
+              {pbiAccessToken ? "Desconectar Power BI" : "Conectar Power BI"}
+            </button>
+          </div>
+          <span>{user.name}</span>
+          <button className="ghost" type="button" onClick={logout}>
+            Cerrar sesion
+          </button>
         </div>
       </header>
 
-      <main className="main">
-        <section className="panel">
+      <main className="dashboard-body">
+        <aside className="report-panel">
           <div className="panel-header">
-            <h2>Reportes</h2>
-            <p className="muted">Selecciona un reporte para embebido.</p>
+            <h2>Lista de reportes</h2>
           </div>
-          {user ? (
-            <div className="panel-body">
-              <div className="report-list">
-                {reports.map((report) => (
-                  <button
-                    key={report.id}
-                    className={
-                      selectedReport?.id === report.id
-                        ? "report-item active"
-                        : "report-item"
-                    }
-                    onClick={() => setSelectedReport(report)}
-                    type="button"
-                  >
-                    <span>{report.name}</span>
-                    <small>{report.report_id}</small>
-                  </button>
-                ))}
-                {reports.length === 0 ? (
-                  <p className="empty">Aun no tienes reportes cargados.</p>
-                ) : null}
-              </div>
-
-              <div className="divider"></div>
-
-              <form className="form" onSubmit={handleAddReport}>
-                <h3>Agregar reporte</h3>
-                <input
-                  name="name"
-                  type="text"
-                  placeholder="Nombre"
-                  value={reportForm.name}
-                  onChange={(event) =>
-                    setReportForm((prev) => ({
-                      ...prev,
-                      name: event.target.value
-                    }))
-                  }
-                  required
-                />
-                <input
-                  name="reportId"
-                  type="text"
-                  placeholder="Report ID"
-                  value={reportForm.reportId}
-                  onChange={(event) =>
-                    setReportForm((prev) => ({
-                      ...prev,
-                      reportId: event.target.value
-                    }))
-                  }
-                  required
-                />
-                <input
-                  name="embedUrl"
-                  type="url"
-                  placeholder="Embed URL"
-                  value={reportForm.embedUrl}
-                  onChange={(event) =>
-                    setReportForm((prev) => ({
-                      ...prev,
-                      embedUrl: event.target.value
-                    }))
-                  }
-                  required
-                />
-                <button type="submit">Guardar</button>
-                {reportError ? <p className="error">{reportError}</p> : null}
-              </form>
-            </div>
-          ) : (
-            <div className="panel-body">
-              <p className="empty">Inicia sesión para ver tus reportes.</p>
-            </div>
-          )}
-        </section>
+          <div className="report-list">
+            {reports.map((report) => (
+              <button
+                key={report.id}
+                type="button"
+                className={
+                  selectedReport?.id === report.id
+                    ? "report-item active"
+                    : "report-item"
+                }
+                onClick={() => setSelectedReport(report)}
+              >
+                <span className="report-icon" aria-hidden="true">
+                  {report.name?.slice(0, 1) || "R"}
+                </span>
+                <span className="report-text">
+                  <span className="report-title">{report.name}</span>
+                  <span className="report-meta">Ver detalle</span>
+                </span>
+              </button>
+            ))}
+            {!reports.length ? (
+              <p className="muted">No hay reportes disponibles.</p>
+            ) : null}
+          </div>
+          {reportError ? <p className="error">{reportError}</p> : null}
+        </aside>
 
         <section className="viewer">
-          <div className="viewer-header">
+          <div className="panel-header">
             <h2>Vista previa</h2>
-            <div className="viewer-actions">
-              {user ? (
-                <button className="ghost" onClick={connectPowerBI} type="button">
-                  {msalAccount ? "Refrescar Microsoft" : "Conectar Microsoft"}
-                </button>
-              ) : null}
+          </div>
+          {!pbiAccessToken ? (
+            <div className="viewer-placeholder">
+              Conecta Power BI para ver los reportes.
             </div>
-          </div>
-
-          <div className="viewer-body">
-            {!selectedReport ? (
-              <div className="placeholder">
-                <p>Selecciona un reporte para comenzar.</p>
-              </div>
-            ) : !powerBiToken ? (
-              <div className="placeholder">
-                <p>
-                  Conecta tu cuenta Microsoft para cargar el reporte con tu
-                  licencia Pro.
-                </p>
-                <button onClick={connectPowerBI} type="button">
-                  Conectar Microsoft
-                </button>
-              </div>
-            ) : (
-              <div className="embed" ref={embedRef}></div>
-            )}
-          </div>
-
-          {readyToEmbed ? (
-            <p className="muted small">
-              Embed activo: {selectedReport.name}
-            </p>
-          ) : null}
+          ) : selectedReport ? (
+            <div ref={reportContainerRef} className="report-frame" />
+          ) : (
+            <div className="viewer-placeholder">
+              Selecciona un reporte para verlo.
+            </div>
+          )}
+          {pbiError ? <p className="error">{pbiError}</p> : null}
         </section>
       </main>
     </div>

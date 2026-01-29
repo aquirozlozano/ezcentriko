@@ -42,7 +42,7 @@ router.post("/login", async (req, res) => {
   }
 
   const result = await query(
-    "SELECT id, name, email, password_hash FROM users WHERE email = $1",
+    "SELECT u.id, u.name, u.email, u.password_hash, c.company_name FROM users u JOIN companies c ON c.id = u.company_id WHERE u.email = $1",
     [email]
   );
 
@@ -57,7 +57,15 @@ router.post("/login", async (req, res) => {
   }
 
   const token = signToken(user);
-  return res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      company_name: user.company_name
+    }
+  });
 });
 
 export default router;
