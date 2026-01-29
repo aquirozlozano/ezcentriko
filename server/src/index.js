@@ -3,11 +3,18 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import reportRoutes from "./routes/reports.js";
+import path from "path";
+import { fileURLToPath } from "url";
+
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "*")
   .split(",")
@@ -20,6 +27,11 @@ app.use(
   })
 );
 app.use(express.json());
+
+app.use(express.static(path.join(__dirname, "..", "public")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+});
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
