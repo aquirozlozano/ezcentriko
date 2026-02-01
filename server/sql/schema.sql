@@ -65,7 +65,7 @@ WHERE c.company_name = 'Centriko'
   );
 
 INSERT INTO reports (company_id, name, embed_url)
-SELECT c.id, 'Inventario', 'https://app.powerbi.com/reportEmbed?reportId=demo-inventario'
+SELECT c.id, 'Inventario', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
 FROM companies c
 WHERE c.company_name = 'Centriko'
   AND NOT EXISTS (
@@ -75,7 +75,7 @@ WHERE c.company_name = 'Centriko'
   );
 
 INSERT INTO reports (company_id, name, embed_url)
-SELECT c.id, 'KPIs Operativos', 'https://app.powerbi.com/reportEmbed?reportId=demo-kpis'
+SELECT c.id, 'KPIs Operativos', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
 FROM companies c
 WHERE c.company_name = 'Orion Foods'
   AND NOT EXISTS (
