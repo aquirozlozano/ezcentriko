@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS reports (
   id SERIAL PRIMARY KEY,
   company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   name TEXT NOT NULL,
   embed_url TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -54,32 +55,32 @@ FROM companies c
 WHERE c.company_name = 'Orion Foods'
   AND NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@orion.local');
 
-INSERT INTO reports (company_id, name, embed_url)
-SELECT c.id, 'Ventas Mensuales', 'https://app.powerbi.com/reportEmbed?reportId=demo-ventas'
-FROM companies c
-WHERE c.company_name = 'Centriko'
+INSERT INTO reports (company_id, user_id, name, embed_url)
+SELECT u.company_id, u.id, 'Ventas Mensuales', 'https://app.powerbi.com/reportEmbed?reportId=demo-ventas'
+FROM users u
+WHERE u.email = 'admin@centriko.local'
   AND NOT EXISTS (
     SELECT 1 FROM reports
     WHERE name = 'Ventas Mensuales'
-      AND company_id = c.id
+      AND user_id = u.id
   );
 
-INSERT INTO reports (company_id, name, embed_url)
-SELECT c.id, 'Inventario', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
-FROM companies c
-WHERE c.company_name = 'Centriko'
+INSERT INTO reports (company_id, user_id, name, embed_url)
+SELECT u.company_id, u.id, 'Inventario', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
+FROM users u
+WHERE u.email = 'admin@centriko.local'
   AND NOT EXISTS (
     SELECT 1 FROM reports
     WHERE name = 'Inventario'
-      AND company_id = c.id
+      AND user_id = u.id
   );
 
-INSERT INTO reports (company_id, name, embed_url)
-SELECT c.id, 'KPIs Operativos', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
-FROM companies c
-WHERE c.company_name = 'Orion Foods'
+INSERT INTO reports (company_id, user_id, name, embed_url)
+SELECT u.company_id, u.id, 'KPIs Operativos', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
+FROM users u
+WHERE u.email = 'admin@orion.local'
   AND NOT EXISTS (
     SELECT 1 FROM reports
     WHERE name = 'KPIs Operativos'
-      AND company_id = c.id
+      AND user_id = u.id
   );

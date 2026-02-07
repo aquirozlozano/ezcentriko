@@ -6,7 +6,8 @@ const router = express.Router();
 
 router.get("/", requireAuth, async (req, res) => {
   const result = await query(
-    "SELECT id, name, embed_url FROM reports ORDER BY name ASC"
+    "SELECT id, name, embed_url FROM reports WHERE user_id = $1 ORDER BY name ASC",
+    [req.user.id]
   );
   return res.json({ reports: result.rows });
 });
@@ -18,8 +19,10 @@ router.post("/", requireAuth, async (req, res) => {
   }
 
   const result = await query(
-    "INSERT INTO reports (name, embed_url) VALUES ($1, $2) RETURNING id, name, embed_url",
-    [name, embedUrl]
+    `INSERT INTO reports (company_id, user_id, name, embed_url)
+     SELECT company_id, id, $1, $2 FROM users WHERE id = $3
+     RETURNING id, name, embed_url`,
+    [name, embedUrl, req.user.id]
   );
 
   return res.status(201).json({ report: result.rows[0] });
