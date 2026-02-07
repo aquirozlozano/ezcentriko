@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import reportRoutes from "./routes/reports.js";
+import powerBiRoutes from "./routes/powerbi.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -28,17 +29,18 @@ app.use(
 );
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, "..", "public")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
-});
-
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/powerbi", powerBiRoutes);
+
+app.use(express.static(path.join(__dirname, "..", "public")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
+});
 
 app.use((err, req, res, next) => {
   console.error(err);

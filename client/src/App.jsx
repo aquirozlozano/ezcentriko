@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PublicClientApplication } from "@azure/msal-browser";
 import * as powerbi from "powerbi-client";
 import { models } from "powerbi-client";
-import { getReports, login } from "./api.js";
-import { parsePowerBiReport } from "./powerbi.js";
+import { getEmbedConfig, getReports, login } from "./api.js";
 
 export default function App() {
   const [authError, setAuthError] = useState("");
@@ -12,29 +10,9 @@ export default function App() {
   const [reports, setReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
   const [reportError, setReportError] = useState("");
-  const [pbiError, setPbiError] = useState("");
-  const [pbiAccessToken, setPbiAccessToken] = useState("");
+  const [embedError, setEmbedError] = useState("");
+  const [embedConfig, setEmbedConfig] = useState(null);
   const reportContainerRef = useRef(null);
-  const pbiAuthAttemptedRef = useRef(false);
-
-  const msalInstance = useMemo(() => {
-    const clientId = import.meta.env.VITE_AAD_CLIENT_ID;
-    const tenantId = import.meta.env.VITE_AAD_TENANT_ID;
-    if (!clientId || !tenantId) {
-      return null;
-    }
-
-    return new PublicClientApplication({
-      auth: {
-        clientId,
-        authority: `https://login.microsoftonline.com/${tenantId}`,
-        redirectUri: window.location.origin
-      },
-      cache: {
-        cacheLocation: "sessionStorage"
-      }
-    });
-  }, []);
 
   const powerbiService = useMemo(() => {
     return new powerbi.service.Service(
@@ -73,52 +51,21 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
-    if (!msalInstance) {
-      return;
-    }
-
-    msalInstance
-      .initialize()
-      .then(() => msalInstance.handleRedirectPromise())
-      .then((response) => {
-        if (response?.accessToken) {
-          setPbiAccessToken(response.accessToken);
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        setPbiError("No se pudo inicializar Power BI.");
-      });
-  }, [msalInstance]);
-
-  useEffect(() => {
     if (!reportContainerRef.current) {
       return;
     }
 
-    if (!selectedReport || !pbiAccessToken) {
-      powerbiService.reset(reportContainerRef.current);
-      return;
-    }
-
-    const { reportId, embedUrl } = parsePowerBiReport(
-      selectedReport.embed_url || ""
-    );
-
-    if (!reportId || !embedUrl) {
-      setReportError(
-        "El enlace del reporte no es valido para Power BI embed."
-      );
+    if (!selectedReport || !embedConfig) {
       powerbiService.reset(reportContainerRef.current);
       return;
     }
 
     const config = {
       type: "report",
-      tokenType: models.TokenType.Aad,
-      accessToken: pbiAccessToken,
-      embedUrl,
-      id: reportId,
+      tokenType: models.TokenType.Embed,
+      accessToken: embedConfig.embedToken,
+      embedUrl: embedConfig.embedUrl,
+      id: embedConfig.reportId,
       settings: {
         panes: {
           filters: { visible: false },
@@ -128,79 +75,30 @@ export default function App() {
     };
 
     powerbiService.embed(reportContainerRef.current, config);
-  }, [pbiAccessToken, powerbiService, selectedReport]);
+  }, [embedConfig, powerbiService, selectedReport]);
 
   const logout = () => {
     setUser(null);
     setToken("");
-    setPbiAccessToken("");
-    pbiAuthAttemptedRef.current = false;
-  };
-
-  const connectPowerBi = async () => {
-    if (!msalInstance) {
-      setPbiError(
-        "Configura VITE_AAD_CLIENT_ID y VITE_AAD_TENANT_ID en el frontend."
-      );
-      return;
-    }
-
-    const rawScopes = import.meta.env.VITE_PBI_SCOPES || "";
-    const scopes = rawScopes
-      .split(",")
-      .map((scope) => scope.trim())
-      .filter(Boolean);
-
-    if (!scopes.length) {
-      setPbiError("Configura VITE_PBI_SCOPES para Power BI.");
-      return;
-    }
-
-    try {
-      setPbiError("");
-      const loginResponse = await msalInstance.loginRedirect({ scopes });
-      const account = loginResponse?.account;
-
-      if (!account) {
-        return;
-      }
-
-      const tokenResponse = await msalInstance.acquireTokenSilent({
-        scopes,
-        account
-      });
-      setPbiAccessToken(tokenResponse.accessToken);
-    } catch (error) {
-      console.error(error);
-      const accounts = msalInstance.getAllAccounts();
-      if (!accounts.length) {
-        return;
-      }
-
-      try {
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-          scopes,
-          account: accounts[0]
-        });
-        setPbiAccessToken(tokenResponse.accessToken);
-      } catch (redirectError) {
-        console.error(redirectError);
-        setPbiError("No se pudo autenticar con Power BI.");
-      }
-    }
+    setEmbedConfig(null);
+    setEmbedError("");
   };
 
   useEffect(() => {
-    if (!user) {
-      return;
-    }
-    if (!msalInstance || pbiAccessToken || pbiAuthAttemptedRef.current) {
+    if (!selectedReport || !token) {
+      setEmbedConfig(null);
       return;
     }
 
-    pbiAuthAttemptedRef.current = true;
-    connectPowerBi();
-  }, [connectPowerBi, msalInstance, pbiAccessToken, user]);
+    setEmbedError("");
+    getEmbedConfig(token, selectedReport.id)
+      .then((data) => {
+        setEmbedConfig(data);
+      })
+      .catch((error) => {
+        setEmbedError(error.message);
+      });
+  }, [selectedReport, token]);
 
   if (!user) {
     return (
@@ -282,18 +180,13 @@ export default function App() {
           <div className="panel-header">
             <h2>Vista previa</h2>
           </div>
-          {!pbiAccessToken ? (
+          {embedError ? (
             <div className="viewer-placeholder">
-              {pbiError ? (
-                <div className="pbi-retry">
-                  <p>{pbiError}</p>
-                  <button type="button" onClick={connectPowerBi}>
-                    Reintentar conexion
-                  </button>
-                </div>
-              ) : (
-                "Conectando Power BI..."
-              )}
+              {embedError}
+            </div>
+          ) : !embedConfig ? (
+            <div className="viewer-placeholder">
+              Conectando Power BI...
             </div>
           ) : selectedReport ? (
             <div ref={reportContainerRef} className="report-frame" />

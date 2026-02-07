@@ -45,6 +45,14 @@ export async function getReports(token) {
   });
 }
 
+export async function getEmbedConfig(token, reportId) {
+  return request(`/api/powerbi/embed/${reportId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export async function createReport(token, report) {
   return request("/api/reports", {
     method: "POST",
