@@ -1,0 +1,4 @@
+VITE_API_BASE=https://ezcentrikope.com
+VITE_AAD_CLIENT_ID=83340ccb-d3d0-4aca-bc16-7232e36c878e
+VITE_AAD_TENANT_ID=03182562-5961-480b-9548-9be6aac101ab
+VITE_PBI_SCOPES=https://analysis.windows.net/powerbi/api/Report.Read.All

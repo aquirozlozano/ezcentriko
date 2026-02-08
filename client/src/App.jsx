@@ -8,7 +8,6 @@ import {
   getOrchestrations,
   getReports,
   login,
-  logReportAccess,
   updateOrchestrationDetails,
   updateOrchestrationStatus,
   updateOrchestrationDestinations,
@@ -38,7 +37,6 @@ export default function App() {
   });
   const reportContainerRef = useRef(null);
   const embeddedReportRef = useRef(null);
-  const lastLoggedReportRef = useRef(null);
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState("");
 
@@ -148,16 +146,6 @@ export default function App() {
     embedded.off("loaded");
     embedded.on("loaded", async () => {
       setReportReady(true);
-      if (!selectedReport) return;
-      if (lastLoggedReportRef.current === selectedReport.id) return;
-      lastLoggedReportRef.current = selectedReport.id;
-      try {
-        await logReportAccess(token, selectedReport.id);
-        const data = await getHistory(token);
-        setHistory(data.history || []);
-      } catch (error) {
-        setHistoryError(error.message);
-      }
     });
   }, [embedConfig, powerbiService, selectedReport]);
 
@@ -215,7 +203,7 @@ export default function App() {
       return;
     }
     if (!isCronValid(orchForm.cron)) {
-      setOrchError("El cron no es válido. Usa 5 campos (min hora dia mes dia_sem).");
+      setOrchError("El cron no es valido. Usa 5 campos (min hora dia mes dia_sem).");
       return;
     }
 
@@ -268,7 +256,7 @@ export default function App() {
 
   const handleDetailsBlur = async (item) => {
     if (item.cron && !isCronValid(item.cron)) {
-      setOrchError("El cron no es válido. Usa 5 campos (min hora dia mes dia_sem).");
+      setOrchError("El cron no es valido. Usa 5 campos (min hora dia mes dia_sem).");
       return;
     }
     try {
@@ -302,7 +290,7 @@ export default function App() {
 
   const handleDeleteOrchestration = async (item) => {
     const confirmed = window.confirm(
-      `Eliminar la orquestación "${item.name}"?`
+      `Eliminar la orquestacion "${item.name}"?`
     );
     if (!confirmed) {
       return;
@@ -598,7 +586,7 @@ export default function App() {
                   />
                 </div>
                 <button type="button" onClick={handleCreateOrchestration}>
-                  Guardar programación
+                  Guardar programacion
                 </button>
                 {orchError ? <p className="error">{orchError}</p> : null}
               </div>
@@ -690,7 +678,7 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="table-empty muted">
-                    Aún no hay orquestaciones creadas.
+                    Aun no hay orquestaciones creadas.
                   </div>
                 )}
               </div>
@@ -707,23 +695,21 @@ export default function App() {
               <div className="history-head">
                 <span>Fecha</span>
                 <span>Usuario</span>
-                <span>Reporte</span>
-                <span>Acción</span>
+                <span>Accion</span>
               </div>
               {history.length ? (
                 <div className="history-body">
                   {history.map((item) => (
                     <div key={item.id} className="history-row">
-                      <span>{new Date(item.accessed_at).toLocaleString()}</span>
+                      <span>{new Date(item.occurred_at).toLocaleString()}</span>
                       <span>{item.user_email}</span>
-                      <span>{item.report_name}</span>
-                      <span>Visualizó</span>
+                      <span>Login</span>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="history-empty muted">
-                  Aún no hay registros.
+                  Aun no hay registros.
                 </div>
               )}
               {historyError ? <p className="error">{historyError}</p> : null}

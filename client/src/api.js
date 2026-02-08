@@ -70,16 +70,6 @@ export async function getEmbedConfig(token, reportId) {
   });
 }
 
-export async function logReportAccess(token, reportId) {
-  return request("/api/history", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify({ reportId })
-  });
-}
-
 export async function createOrchestration(token, orchestration) {
   return request("/api/orchestrations", {
     method: "POST",

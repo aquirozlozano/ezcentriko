@@ -6,15 +6,13 @@ const router = express.Router();
 
 router.get("/", requireAuth, async (req, res) => {
   const result = await query(
-    `SELECT l.id,
-            l.accessed_at,
-            r.name AS report_name,
+    `SELECT ll.id,
+            ll.logged_in_at AS occurred_at,
             u.email AS user_email
-     FROM report_access_logs l
-     JOIN reports r ON r.id = l.report_id
-     JOIN users u ON u.id = l.user_id
-     WHERE l.user_id = $1
-     ORDER BY l.accessed_at DESC
+     FROM login_logs ll
+     JOIN users u ON u.id = ll.user_id
+     WHERE ll.user_id = $1
+     ORDER BY ll.logged_in_at DESC
      LIMIT 200`,
     [req.user.id]
   );

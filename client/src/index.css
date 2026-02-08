@@ -460,7 +460,7 @@ select {
 
 .history-head {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   font-weight: 600;
   color: var(--muted);
 }
@@ -472,7 +472,7 @@ select {
 
 .history-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 10px 12px;
   border-radius: 12px;

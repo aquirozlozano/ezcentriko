@@ -42,7 +42,7 @@ router.post("/login", async (req, res) => {
   }
 
   const result = await query(
-    "SELECT u.id, u.name, u.email, u.password_hash, c.company_name FROM users u JOIN companies c ON c.id = u.company_id WHERE u.email = $1",
+    "SELECT u.id, u.name, u.email, u.password_hash, u.company_id, c.company_name FROM users u JOIN companies c ON c.id = u.company_id WHERE u.email = $1",
     [email]
   );
 
@@ -55,6 +55,11 @@ router.post("/login", async (req, res) => {
   if (!ok) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
+
+  await query(
+    "INSERT INTO login_logs (company_id, user_id) VALUES ($1, $2)",
+    [user.company_id, user.id]
+  );
 
   const token = signToken(user);
   return res.json({
