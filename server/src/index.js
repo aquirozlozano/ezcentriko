@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import reportRoutes from "./routes/reports.js";
 import powerBiRoutes from "./routes/powerbi.js";
+import orchestrationRoutes from "./routes/orchestrations.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -36,6 +37,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/powerbi", powerBiRoutes);
+app.use("/api/orchestrations", orchestrationRoutes);
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 app.get("*", (req, res) => {

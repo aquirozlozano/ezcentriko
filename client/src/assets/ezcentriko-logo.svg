@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="EZCentriko logo">
+  <defs>
+    <linearGradient id="ezc-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b6fa5"/>
+      <stop offset="1" stop-color="#0a4a78"/>
+    </linearGradient>
+    <linearGradient id="ezc-orange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4a23c"/>
+      <stop offset="1" stop-color="#d97910"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M18 42 60 20l42 22-42 22z" fill="url(#ezc-blue)"/>
+    <path d="M18 58 60 36l42 22-42 22z" fill="url(#ezc-orange)"/>
+    <path d="M18 74 60 52l42 22-42 22z" fill="url(#ezc-blue)"/>
+  </g>
+</svg>

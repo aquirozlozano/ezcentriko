@@ -45,8 +45,65 @@ export async function getReports(token) {
   });
 }
 
+export async function getOrchestrations(token) {
+  return request("/api/orchestrations", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
 export async function getEmbedConfig(token, reportId) {
   return request(`/api/powerbi/embed/${reportId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export async function createOrchestration(token, orchestration) {
+  return request("/api/orchestrations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(orchestration)
+  });
+}
+
+export async function updateOrchestrationDestinations(token, id, destinations) {
+  return request(`/api/orchestrations/${id}/destinations`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ destinations })
+  });
+}
+
+export async function updateOrchestrationDetails(token, id, details) {
+  return request(`/api/orchestrations/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(details)
+  });
+}
+
+export async function updateOrchestrationStatus(token, id, status) {
+  return request(`/api/orchestrations/${id}/status`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ status })
+  });
+}
+
+export async function deleteOrchestration(token, id) {
+  return request(`/api/orchestrations/${id}`, {
+    method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`
     }

@@ -24,6 +24,20 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS orchestrations (
+  id SERIAL PRIMARY KEY,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE RESTRICT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE RESTRICT,
+  name TEXT NOT NULL,
+  destinations TEXT NOT NULL,
+  cron TEXT NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'America/Lima',
+  status TEXT NOT NULL DEFAULT 'activo',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Datos de prueba (idempotentes)
 INSERT INTO companies (company_name)
 SELECT 'Centriko'
