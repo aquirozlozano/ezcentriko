@@ -7,15 +7,21 @@ const router = express.Router();
 
 function signToken(user) {
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name },
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      company_id: user.company_id,
+      role: user.role
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
   );
 }
 
 router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body || {};
-  if (!name || !email || !password) {
+  const { name, email, password, companyId } = req.body || {};
+  if (!name || !email || !password || !companyId) {
     return res.status(400).json({ error: "Missing fields" });
   }
 
@@ -26,12 +32,16 @@ router.post("/register", async (req, res) => {
 
   const hash = await bcrypt.hash(password, 10);
   const result = await query(
-    "INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, name, email",
-    [name, email, hash]
+    `INSERT INTO users (company_id, role_id, name, email, password_hash)
+     SELECT $1, r.id, $2, $3, $4
+     FROM roles r
+     WHERE r.name = 'visitante'
+     RETURNING id, name, email, company_id`,
+    [companyId, name, email, hash]
   );
 
   const user = result.rows[0];
-  const token = signToken(user);
+  const token = signToken({ ...user, role: "visitante" });
   return res.json({ token, user });
 });
 
@@ -42,7 +52,17 @@ router.post("/login", async (req, res) => {
   }
 
   const result = await query(
-    "SELECT u.id, u.name, u.email, u.password_hash, u.company_id, c.company_name FROM users u JOIN companies c ON c.id = u.company_id WHERE u.email = $1",
+    `SELECT u.id,
+            u.name,
+            u.email,
+            u.password_hash,
+            u.company_id,
+            c.company_name,
+            r.name AS role
+     FROM users u
+     JOIN companies c ON c.id = u.company_id
+     JOIN roles r ON r.id = u.role_id
+     WHERE u.email = $1`,
     [email]
   );
 
@@ -68,7 +88,8 @@ router.post("/login", async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      company_name: user.company_name
+      company_name: user.company_name,
+      role: user.role
     }
   });
 });

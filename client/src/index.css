@@ -485,6 +485,38 @@ select {
   padding: 18px 0;
 }
 
+.manage-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 24px;
+}
+
+.manage-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.manage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.permissions-list {
+  display: grid;
+  gap: 10px;
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.65);
+}
+
 @media (max-width: 960px) {
   .dashboard-body {
     grid-template-columns: 1fr;
@@ -504,6 +536,10 @@ select {
   }
 
   .orchestrator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manage-grid {
     grid-template-columns: 1fr;
   }
 }

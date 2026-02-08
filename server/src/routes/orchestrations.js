@@ -1,6 +1,6 @@
 import express from "express";
 import { query } from "../db.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAdmin, requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ const isCronValid = (value) => {
   return parts.every((part) => /^[\d*/,-]+$/.test(part));
 };
 
-router.get("/", requireAuth, async (req, res) => {
+router.get("/", requireAuth, requireAdmin, async (req, res) => {
   const result = await query(
     `SELECT o.id,
             o.name,
@@ -31,7 +31,7 @@ router.get("/", requireAuth, async (req, res) => {
   return res.json({ orchestrations: result.rows });
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, requireAdmin, async (req, res) => {
   const { name, reportId, destinations, cron, timezone } = req.body || {};
   if (!name || !reportId || !destinations || !cron) {
     return res.status(400).json({ error: "Missing fields" });
@@ -85,7 +85,7 @@ router.post("/", requireAuth, async (req, res) => {
   return res.status(201).json({ orchestration: result.rows[0] });
 });
 
-router.put("/:id", requireAuth, async (req, res) => {
+router.put("/:id", requireAuth, requireAdmin, async (req, res) => {
   const { name, cron } = req.body || {};
   if (!name && !cron) {
     return res.status(400).json({ error: "Missing fields" });
@@ -124,7 +124,7 @@ router.put("/:id", requireAuth, async (req, res) => {
   return res.json({ orchestration: result.rows[0] });
 });
 
-router.put("/:id/destinations", requireAuth, async (req, res) => {
+router.put("/:id/destinations", requireAuth, requireAdmin, async (req, res) => {
   const { destinations } = req.body || {};
   if (!destinations) {
     return res.status(400).json({ error: "Missing destinations" });
@@ -159,7 +159,7 @@ router.put("/:id/destinations", requireAuth, async (req, res) => {
   return res.json({ orchestration: result.rows[0] });
 });
 
-router.put("/:id/status", requireAuth, async (req, res) => {
+router.put("/:id/status", requireAuth, requireAdmin, async (req, res) => {
   const { status } = req.body || {};
   if (!status || !["activo", "pausado"].includes(status)) {
     return res.status(400).json({ error: "Invalid status" });
@@ -194,7 +194,7 @@ router.put("/:id/status", requireAuth, async (req, res) => {
   return res.json({ orchestration: result.rows[0] });
 });
 
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", requireAuth, requireAdmin, async (req, res) => {
   const result = await query(
     `DELETE FROM orchestrations
      WHERE id = $1

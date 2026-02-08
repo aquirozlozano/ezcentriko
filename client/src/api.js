@@ -62,6 +62,40 @@ export async function getHistory(token) {
   });
 }
 
+export async function getAdminUsers(token) {
+  return request("/api/admin/users", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export async function getAdminReports(token) {
+  return request("/api/admin/reports", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export async function getUserPermissions(token, userId) {
+  return request(`/api/admin/permissions/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export async function updateUserPermissions(token, userId, reportIds) {
+  return request(`/api/admin/permissions/${userId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ reportIds })
+  });
+}
+
 export async function getEmbedConfig(token, reportId) {
   return request(`/api/powerbi/embed/${reportId}`, {
     headers: {

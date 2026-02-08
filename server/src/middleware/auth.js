@@ -16,3 +16,10 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
+
+export function requireAdmin(req, res, next) {
+  if (!req.user || req.user.role !== "administrador") {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  return next();
+}

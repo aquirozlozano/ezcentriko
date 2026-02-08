@@ -4,10 +4,14 @@ import { models } from "powerbi-client";
 import {
   createOrchestration,
   getHistory,
+  getAdminUsers,
+  getAdminReports,
+  getUserPermissions,
   getEmbedConfig,
   getOrchestrations,
   getReports,
   login,
+  updateUserPermissions,
   updateOrchestrationDetails,
   updateOrchestrationStatus,
   updateOrchestrationDestinations,
@@ -39,6 +43,12 @@ export default function App() {
   const embeddedReportRef = useRef(null);
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState("");
+  const isAdmin = user?.role === "administrador";
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminReports, setAdminReports] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedPermissions, setSelectedPermissions] = useState([]);
+  const [manageError, setManageError] = useState("");
 
   const isCronValid = (value) => {
     if (!value) return false;
@@ -84,7 +94,7 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !isAdmin) {
       setOrchestrations([]);
       return;
     }
@@ -98,7 +108,7 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !isAdmin) {
       setHistory([]);
       return;
     }
@@ -109,7 +119,37 @@ export default function App() {
         setHistoryError("");
       })
       .catch((error) => setHistoryError(error.message));
-  }, [token]);
+  }, [token, isAdmin]);
+
+  useEffect(() => {
+    if (!token || !isAdmin) {
+      setAdminUsers([]);
+      setAdminReports([]);
+      return;
+    }
+
+    Promise.all([getAdminUsers(token), getAdminReports(token)])
+      .then(([usersData, reportsData]) => {
+        setAdminUsers(usersData.users || []);
+        setAdminReports(reportsData.reports || []);
+        setManageError("");
+      })
+      .catch((error) => setManageError(error.message));
+  }, [token, isAdmin]);
+
+  useEffect(() => {
+    if (!token || !isAdmin || !selectedUserId) {
+      setSelectedPermissions([]);
+      return;
+    }
+
+    getUserPermissions(token, selectedUserId)
+      .then((data) => {
+        setSelectedPermissions(data.reportIds || []);
+        setManageError("");
+      })
+      .catch((error) => setManageError(error.message));
+  }, [token, isAdmin, selectedUserId]);
 
   useEffect(() => {
     if (!reportContainerRef.current) {
@@ -304,6 +344,27 @@ export default function App() {
     }
   };
 
+  const handleTogglePermission = (reportId) => {
+    setSelectedPermissions((prev) =>
+      prev.includes(reportId)
+        ? prev.filter((id) => id !== reportId)
+        : [...prev, reportId]
+    );
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedUserId) {
+      setManageError("Selecciona un usuario.");
+      return;
+    }
+    try {
+      await updateUserPermissions(token, selectedUserId, selectedPermissions);
+      setManageError("");
+    } catch (error) {
+      setManageError(error.message);
+    }
+  };
+
   useEffect(() => {
     if (!selectedReport || !token) {
     setEmbedConfig(null);
@@ -377,8 +438,13 @@ export default function App() {
       <nav className="view-tabs" role="tablist" aria-label="Vistas">
         {[
           { key: "reports", label: "Reportes" },
-          { key: "orchestrator", label: "Orquestador" },
-          { key: "history", label: "Historial" }
+          ...(isAdmin
+            ? [
+                { key: "orchestrator", label: "Orquestador" },
+                { key: "history", label: "Historial" },
+                { key: "manage", label: "Gestionar" }
+              ]
+            : [])
         ].map((tab) => (
           <button
             key={tab.key}
@@ -524,7 +590,7 @@ export default function App() {
             )}
           </section>
         </main>
-      ) : activeView === "orchestrator" ? (
+      ) : activeView === "orchestrator" && isAdmin ? (
         <main className="dashboard-body single">
           <section className="viewer">
             <div className="panel-header">
@@ -685,7 +751,7 @@ export default function App() {
             </div>
           </section>
         </main>
-      ) : (
+      ) : activeView === "history" && isAdmin ? (
         <main className="dashboard-body single">
           <section className="viewer">
             <div className="panel-header">
@@ -713,6 +779,77 @@ export default function App() {
                 </div>
               )}
               {historyError ? <p className="error">{historyError}</p> : null}
+            </div>
+          </section>
+        </main>
+      ) : activeView === "manage" && isAdmin ? (
+        <main className="dashboard-body single">
+          <section className="viewer">
+            <div className="panel-header">
+              <h2>Gestionar</h2>
+            </div>
+            <div className="manage-grid">
+              <div className="manage-panel">
+                <h3>Usuarios</h3>
+                <div className="manage-list">
+                  {adminUsers.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      className={
+                        String(u.id) === String(selectedUserId)
+                          ? "report-item active"
+                          : "report-item"
+                      }
+                      onClick={() => setSelectedUserId(String(u.id))}
+                    >
+                      <span className="report-icon" aria-hidden="true">
+                        {u.name?.slice(0, 1) || "U"}
+                      </span>
+                      <span className="report-text">
+                        <span className="report-title">{u.name}</span>
+                        <span className="report-meta">{u.email}</span>
+                      </span>
+                    </button>
+                  ))}
+                  {!adminUsers.length ? (
+                    <p className="muted">No hay usuarios.</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="manage-panel">
+                <div className="panel-header">
+                  <h3>Permisos de reportes</h3>
+                  <button type="button" onClick={handleSavePermissions}>
+                    Guardar permisos
+                  </button>
+                </div>
+                <div className="permissions-list">
+                  {adminReports.map((report) => (
+                    <label key={report.id} className="permission-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedPermissions.includes(report.id)}
+                        onChange={() => handleTogglePermission(report.id)}
+                      />
+                      <span>{report.name}</span>
+                    </label>
+                  ))}
+                  {!adminReports.length ? (
+                    <p className="muted">No hay reportes.</p>
+                  ) : null}
+                </div>
+                {manageError ? <p className="error">{manageError}</p> : null}
+              </div>
+            </div>
+          </section>
+        </main>
+      ) : (
+        <main className="dashboard-body single">
+          <section className="viewer">
+            <div className="viewer-placeholder">
+              No tienes permisos para ver esta seccion.
             </div>
           </section>
         </main>
