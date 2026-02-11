@@ -3,7 +3,7 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
-    container_name: ez-centriko-postgres
+    container_name: ezcentriko-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ezcentriko
