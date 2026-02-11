@@ -152,3 +152,34 @@ WHERE u.email = 'admin@orion.local'
 --INSERT INTO report_permissions (user_id, report_id)
 --SELECT user_id, id FROM reports
 --ON CONFLICT DO NOTHING;
+
+
+
+INSERT INTO companies (company_name)
+VALUES ('Antamina')
+RETURNING id, company_name, created_at;
+
+INSERT INTO users (company_id, role_id, name, email, password_hash)
+SELECT
+  c.id,
+  r.id,
+  'antamina',
+  'antamina@ezcentrikope.com',
+  crypt('Lima2026@', gen_salt('bf'))
+FROM companies c
+JOIN roles r ON r.name = 'administrador'   -- o 'administrador'
+WHERE c.company_name = 'Antamina'      -- cambia por tu empresa
+RETURNING id, company_id, role_id, name, email, created_at;
+
+
+INSERT INTO reports (company_id, role_id, user_id, name, embed_url)
+SELECT
+  u.company_id, u.role_id, u.id, 'Inspeccion por ensayos',
+  'https://app.powerbi.com/reportEmbed?reportId=9821b8c4-20d5-40fd-a6d3-3831e2637c0a&groupId=73e8e5eb-8022-40ea-931f-d0671e4d9596&ctid=03182562-5961-480b-9548-9be6aac101ab'
+FROM users u
+WHERE u.email = 'antamina@ezcentrikope.com'
+  AND NOT EXISTS (
+    SELECT 1 FROM reports r
+    WHERE r.user_id = u.id AND r.name = 'Inspeccion por ensayos'
+  )
+RETURNING id, company_id, role_id, user_id, name, embed_url;

@@ -29,6 +29,7 @@ export default function App() {
   const [embedError, setEmbedError] = useState("");
   const [embedConfig, setEmbedConfig] = useState(null);
   const [reportReady, setReportReady] = useState(false);
+  const [mobilePreview, setMobilePreview] = useState(false);
   const [activeView, setActiveView] = useState("reports");
   const [orchestrations, setOrchestrations] = useState([]);
   const [orchError, setOrchError] = useState("");
@@ -57,6 +58,75 @@ export default function App() {
     return parts.every((part) => /^[\d*/,-]+$/.test(part));
   };
 
+  const applyReportLayout = async (reportInstance, useMobileLayout) => {
+    if (!reportInstance) {
+      return;
+    }
+
+    const nextLayoutType = useMobileLayout
+      ? models.LayoutType.MobilePortrait
+      : models.LayoutType.Master;
+
+    try {
+      if (useMobileLayout && typeof reportInstance.getPages === "function") {
+        const pages = await reportInstance.getPages();
+        let activePage = null;
+        let mobileTargetPage = null;
+        let activePageHasMobileLayout = false;
+
+        if (typeof reportInstance.getActivePage === "function") {
+          try {
+            activePage = await reportInstance.getActivePage();
+            if (activePage && typeof activePage.hasLayout === "function") {
+              activePageHasMobileLayout = await activePage.hasLayout(
+                models.LayoutType.MobilePortrait
+              );
+            }
+          } catch {
+            activePage = null;
+          }
+        }
+
+        if (pages.length && typeof pages[0].hasLayout === "function") {
+          for (const page of pages) {
+            try {
+              if (await page.hasLayout(models.LayoutType.MobilePortrait)) {
+                mobileTargetPage = page;
+                break;
+              }
+            } catch {
+              // Ignore per-page errors and continue checking other pages.
+            }
+          }
+        }
+
+        // If the active page has no mobile layout, switch to the first one that has it.
+        if (
+          mobileTargetPage &&
+          (!activePageHasMobileLayout ||
+            (activePage && mobileTargetPage.name !== activePage.name))
+        ) {
+          await mobileTargetPage.setActive();
+        }
+      }
+
+      if (typeof reportInstance.switchLayout === "function") {
+        await reportInstance.switchLayout(nextLayoutType);
+      }
+      if (typeof reportInstance.updateSettings === "function") {
+        await reportInstance.updateSettings({
+          layoutType: nextLayoutType
+        });
+      }
+      if (typeof reportInstance.setPageView === "function") {
+        await reportInstance.setPageView(
+          useMobileLayout ? "fitToWidth" : "fitToPage"
+        );
+      }
+    } catch (error) {
+      console.error("No se pudo cambiar layout del reporte", error);
+    }
+  };
   const powerbiService = useMemo(() => {
     return new powerbi.service.Service(
       powerbi.factories.hpmFactory,
@@ -170,12 +240,18 @@ export default function App() {
       embedUrl: embedConfig.embedUrl,
       id: embedConfig.reportId,
       settings: {
+        layoutType: mobilePreview
+          ? models.LayoutType.MobilePortrait
+          : models.LayoutType.Master,
         panes: {
           filters: { visible: false },
           pageNavigation: { visible: true }
         }
       }
     };
+
+    // Avoid SDK desync by resetting before each fresh embed.
+    powerbiService.reset(reportContainerRef.current);
 
     const embedded = powerbiService.embed(
       reportContainerRef.current,
@@ -185,9 +261,16 @@ export default function App() {
     setReportReady(false);
     embedded.off("loaded");
     embedded.on("loaded", async () => {
+      await applyReportLayout(embedded, mobilePreview);
       setReportReady(true);
     });
-  }, [embedConfig, powerbiService, selectedReport]);
+
+    return () => {
+      if (reportContainerRef.current) {
+        powerbiService.reset(reportContainerRef.current);
+      }
+    };
+  }, [embedConfig, mobilePreview, powerbiService, selectedReport]);
 
   const logout = () => {
     setUser(null);
@@ -501,6 +584,37 @@ export default function App() {
               <div className="panel-actions">
                 <button
                   type="button"
+                  className={
+                    mobilePreview
+                      ? "ghost icon-button active"
+                      : "ghost icon-button"
+                  }
+                  onClick={() => setMobilePreview((prev) => !prev)}
+                  disabled={!reportReady}
+                  title="Vista movil"
+                  aria-label="Vista movil"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="7"
+                      y="2.5"
+                      width="10"
+                      height="19"
+                      rx="2.3"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <circle cx="12" cy="18.3" r="0.9" fill="currentColor" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
                   className="ghost icon-button"
                   onClick={handleFullscreen}
                   disabled={!reportReady}
@@ -582,7 +696,14 @@ export default function App() {
                 Conectando Power BI...
               </div>
             ) : selectedReport ? (
-              <div ref={reportContainerRef} className="report-frame" />
+              <div className="report-frame-wrap">
+                <div
+                  ref={reportContainerRef}
+                  className={
+                    mobilePreview ? "report-frame mobile" : "report-frame"
+                  }
+                />
+              </div>
             ) : (
               <div className="viewer-placeholder">
                 Selecciona un reporte para verlo.
@@ -857,3 +978,13 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

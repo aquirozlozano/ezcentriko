@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: light;
   font-family: "Space Grotesk", system-ui, sans-serif;
   --bg: #f7f4ef;
@@ -553,4 +553,23 @@ select {
   .table-row {
     min-width: 760px;
   }
+}
+
+
+.icon-button.active {
+  border-color: rgba(255, 107, 74, 0.5);
+  color: #c84c2f;
+  background: rgba(255, 107, 74, 0.12);
+}
+
+.report-frame-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.report-frame.mobile {
+  width: min(430px, 100%);
+  min-height: 860px;
+  border-radius: 22px;
 }
