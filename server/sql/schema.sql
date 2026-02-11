@@ -5,14 +5,6 @@ CREATE TABLE IF NOT EXISTS roles (
   name TEXT NOT NULL UNIQUE
 );
 
--- Permisos por reporte
-CREATE TABLE IF NOT EXISTS report_permissions (
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE RESTRICT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, report_id)
-);
-
 CREATE TABLE IF NOT EXISTS companies (
   id SERIAL PRIMARY KEY,
   company_name TEXT NOT NULL,
@@ -37,6 +29,14 @@ CREATE TABLE IF NOT EXISTS reports (
   name TEXT NOT NULL,
   embed_url TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Permisos por reporte
+CREATE TABLE IF NOT EXISTS report_permissions (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE RESTRICT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, report_id)
 );
 
 CREATE TABLE IF NOT EXISTS orchestrations (
@@ -117,8 +117,8 @@ JOIN roles r ON r.name = 'administrador'
 WHERE c.company_name = 'Orion Foods'
   AND NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@orion.local');
 
-INSERT INTO reports (company_id, user_id, name, embed_url)
-SELECT u.company_id, u.id, 'Ventas Mensuales', 'https://app.powerbi.com/reportEmbed?reportId=demo-ventas'
+INSERT INTO reports (company_id, role_id, user_id, name, embed_url)
+SELECT u.company_id, u.role_id, u.id, 'Ventas Mensuales', 'https://app.powerbi.com/reportEmbed?reportId=demo-ventas'
 FROM users u
 WHERE u.email = 'admin@centriko.local'
   AND NOT EXISTS (
@@ -127,8 +127,8 @@ WHERE u.email = 'admin@centriko.local'
       AND user_id = u.id
   );
 
-INSERT INTO reports (company_id, user_id, name, embed_url)
-SELECT u.company_id, u.id, 'Inventario', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
+INSERT INTO reports (company_id, role_id, user_id, name, embed_url)
+SELECT u.company_id, u.role_id, u.id, 'Inventario', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
 FROM users u
 WHERE u.email = 'admin@centriko.local'
   AND NOT EXISTS (
@@ -137,8 +137,8 @@ WHERE u.email = 'admin@centriko.local'
       AND user_id = u.id
   );
 
-INSERT INTO reports (company_id, user_id, name, embed_url)
-SELECT u.company_id, u.id, 'KPIs Operativos', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
+INSERT INTO reports (company_id, role_id, user_id, name, embed_url)
+SELECT u.company_id, u.role_id, u.id, 'KPIs Operativos', 'https://app.powerbi.com/groups/me/reports/eff21341-4863-435e-a975-597a06cc6320/7783bc3b30a546217865?experience=power-bi'
 FROM users u
 WHERE u.email = 'admin@orion.local'
   AND NOT EXISTS (
