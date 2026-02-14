@@ -45,6 +45,7 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
        SELECT r.id AS report_id,
               r.name AS report_name,
               u.company_id,
+              u.role_id,
               u.id AS user_id
        FROM reports r
        JOIN users u ON u.id = $6
@@ -53,8 +54,9 @@ router.post("/", requireAuth, requireAdmin, async (req, res) => {
      ),
      inserted AS (
        INSERT INTO orchestrations
-         (company_id, user_id, report_id, name, destinations, cron, timezone, status)
+         (company_id, role_id, user_id, report_id, name, destinations, cron, timezone, status)
        SELECT company_id,
+              role_id,
               user_id,
               report_id,
               $2,

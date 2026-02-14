@@ -26,8 +26,8 @@ router.post("/", requireAuth, async (req, res) => {
   }
 
   const result = await query(
-    `INSERT INTO reports (company_id, user_id, name, embed_url)
-     SELECT company_id, id, $1, $2 FROM users WHERE id = $3
+    `INSERT INTO reports (company_id, role_id, user_id, name, embed_url)
+     SELECT company_id, role_id, id, $1, $2 FROM users WHERE id = $3
      RETURNING id, name, embed_url`,
     [name, embedUrl, req.user.id]
   );
