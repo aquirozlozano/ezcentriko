@@ -95,6 +95,7 @@ h1 {
 
 .slogan-line {
   white-space: nowrap;
+  max-width: none;
 }
 
 .login-card {
@@ -545,6 +546,21 @@ select {
 }
 
 @media (max-width: 720px) {
+  .login-hero {
+    width: 100%;
+  }
+
+  .slogan-line {
+    font-size: clamp(1.8rem, 8.5vw, 2.6rem);
+    line-height: 1.15;
+    max-width: 18ch;
+    white-space: normal;
+    text-wrap: balance;
+    text-align: center;
+    margin-inline: auto;
+    overflow-wrap: break-word;
+  }
+
   .orchestrator-table {
     padding: 12px;
   }
