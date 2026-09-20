@@ -1,0 +1,40 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name ezcentriko.com www.ezcentriko.com 2.25.210.143;
+
+    root /var/www/ezcentriko/current;
+    index index.html;
+    server_tokens off;
+
+    access_log /var/log/nginx/ezcentriko.access.log;
+    error_log /var/log/nginx/ezcentriko.error.log;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    location / {
+        try_files $uri $uri/ =404;
+        expires -1;
+    }
+
+    location ~* "^/assets/.*-[A-Za-z0-9_-]{8}\.(css|js)$" {
+        try_files $uri =404;
+        expires 1y;
+    }
+
+    location /assets/ {
+        try_files $uri =404;
+        expires 1h;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}
