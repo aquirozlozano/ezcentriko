@@ -7,6 +7,7 @@ import powerBiRoutes from "./routes/powerbi.js";
 import orchestrationRoutes from "./routes/orchestrations.js";
 import historyRoutes from "./routes/history.js";
 import adminRoutes from "./routes/admin.js";
+import areaRoutes from "./routes/areas.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -45,6 +46,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/powerbi", powerBiRoutes);
 app.use("/api/orchestrations", orchestrationRoutes);
 app.use("/api/history", historyRoutes);
+app.use("/api/admin", areaRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.use(express.static(path.join(__dirname, "..", "public")));

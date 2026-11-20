@@ -1,6 +1,7 @@
 import express from "express";
 import { query } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { reportAccess, accessParams } from "../report-access.js";
 
 const router = express.Router();
 
@@ -54,15 +55,16 @@ function parseReportId(embedUrl) {
   }
 }
 
-router.get("/embed/:id", requireAuth, async (req, res) => {
+router.get("/embed/:id", requireAuth, async (req, res, next) => {
+  try {
   const reportId = Number(req.params.id);
-  if (!Number.isFinite(reportId)) {
+  if (!Number.isSafeInteger(reportId) || reportId < 1) {
     return res.status(400).json({ error: "Invalid report id" });
   }
 
   const result = await query(
-    "SELECT id, name, embed_url FROM reports WHERE id = $1",
-    [reportId]
+    `SELECT r.id, r.name, r.embed_url FROM reports r WHERE ${reportAccess} AND r.id = $4`,
+    [...accessParams(req.user), reportId]
   );
 
   if (result.rowCount === 0) {
@@ -124,6 +126,7 @@ router.get("/embed/:id", requireAuth, async (req, res) => {
     embedUrl: reportInfo.embedUrl,
     embedToken: tokenData.token
   });
+  } catch (error) { next(error); }
 });
 
 export default router;
