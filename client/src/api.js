@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.DEV ? "http://localhost:4000" : "");
 
 async function request(path, options = {}) {
   const { headers: extraHeaders, ...rest } = options;
@@ -78,24 +78,6 @@ export async function getAdminReports(token) {
   });
 }
 
-export async function getUserPermissions(token, userId) {
-  return request(`/api/admin/permissions/${userId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-}
-
-export async function updateUserPermissions(token, userId, reportIds) {
-  return request(`/api/admin/permissions/${userId}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify({ reportIds })
-  });
-}
-
 export async function getEmbedConfig(token, reportId) {
   return request(`/api/powerbi/embed/${reportId}`, {
     headers: {
@@ -103,6 +85,12 @@ export async function getEmbedConfig(token, reportId) {
     }
   });
 }
+
+export const getAreas = (token) => request('/api/admin/areas', { headers: { Authorization: `Bearer ${token}` } });
+export const createArea = (token, name) => request('/api/admin/areas', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ name }) });
+export const renameArea = (token, id, name) => request(`/api/admin/areas/${id}`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ name }) });
+export const saveAreaReports = (token, id, reportIds) => request(`/api/admin/areas/${id}/reports`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ reportIds }) });
+export const assignUserArea = (token, id, areaId) => request(`/api/admin/users/${id}/area`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` }, body: JSON.stringify({ areaId }) });
 
 export async function createOrchestration(token, orchestration) {
   return request("/api/orchestrations", {

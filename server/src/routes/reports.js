@@ -1,25 +1,22 @@
 import express from "express";
 import { query } from "../db.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { reportAccess, accessParams } from "../report-access.js";
 
 const router = express.Router();
 
 router.get("/", requireAuth, async (req, res) => {
-  const isAdmin = req.user?.role === "administrador";
-  const result = await query(
-    isAdmin
-      ? "SELECT id, name, embed_url FROM reports WHERE company_id = $1 ORDER BY name ASC"
-      : `SELECT r.id, r.name, r.embed_url
-         FROM reports r
-         JOIN report_permissions rp ON rp.report_id = r.id
-         WHERE rp.user_id = $1
-         ORDER BY r.name ASC`,
-    [isAdmin ? req.user.company_id : req.user.id]
-  );
-  return res.json({ reports: result.rows });
+  try {
+    const result = await query(
+      `SELECT r.id, r.name, r.embed_url FROM reports r WHERE ${reportAccess} ORDER BY r.name`,
+      accessParams(req.user)
+    );
+    return res.json({ reports: result.rows });
+  } catch (error) { return res.status(500).json({ error: "No se pudieron cargar los reportes" }); }
 });
 
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
   const { name, embedUrl } = req.body || {};
   if (!name || !embedUrl) {
     return res.status(400).json({ error: "Missing fields" });
@@ -32,14 +29,8 @@ router.post("/", requireAuth, async (req, res) => {
     [name, embedUrl, req.user.id]
   );
 
-  await query(
-    `INSERT INTO report_permissions (user_id, report_id)
-     VALUES ($1, $2)
-     ON CONFLICT DO NOTHING`,
-    [req.user.id, result.rows[0].id]
-  );
-
   return res.status(201).json({ report: result.rows[0] });
+  } catch (error) { next(error); }
 });
 
 export default router;
